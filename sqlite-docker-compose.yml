@@ -1,0 +1,34 @@
+name: 'n8n'
+
+services:
+  n8n:
+    image: 'docker.n8n.io/n8nio/n8n:latest'
+    ports:
+      - '127.0.0.1:5678:5678'
+    environment:
+      N8N_PORT: '5678'
+      N8N_LISTEN_ADDRESS: '0.0.0.0'
+      GENERIC_TIMEZONE: '${GENERIC_TIMEZONE:-Asia/Seoul}'
+      # 보안을 위해 고정 암호화 키를 권장합니다.
+      N8N_ENCRYPTION_KEY: '${N8N_ENCRYPTION_KEY}'
+      # /healthz(옵션) 활성화 — 필요 없으면 제거해도 됩니다.
+      QUEUE_HEALTH_CHECK_ACTIVE: 'true'
+    volumes:
+      - 'n8n_data:/home/node/.n8n'
+    # (옵션) n8n가 완전히 준비됐는지 확인하는 컨테이너 헬스체크
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:5678/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+
+volumes:
+  n8n_data:
