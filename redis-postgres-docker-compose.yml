@@ -1,4 +1,4 @@
-name: 'n8n'
+name: 'n8n-redis'
 
 networks:
   n8n-network:
@@ -23,6 +23,20 @@ services:
       start_period: 30s
     restart: unless-stopped
 
+  redis:
+    image: 'redis:7-alpine'
+    volumes:
+      - 'redis_data:/data'
+    networks:
+      - n8n-network
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+
   n8n:
     image: 'docker.n8n.io/n8nio/n8n:latest'
     ports:
@@ -42,7 +56,11 @@ services:
       DB_POSTGRESDB_DATABASE: '${POSTGRES_DB}'
       DB_POSTGRESDB_USER: '${POSTGRES_USER}'
       DB_POSTGRESDB_PASSWORD: '${POSTGRES_PASSWORD}'
-      # (옵션) /healthz 활성화
+      # Redis Queue
+      QUEUE_BULL_REDIS_HOST: 'redis'
+      QUEUE_BULL_REDIS_PORT: '6379'
+      EXECUTIONS_MODE: 'queue'
+      # Health Check
       QUEUE_HEALTH_CHECK_ACTIVE: 'true'
     volumes:
       - 'n8n_data:/home/node/.n8n'
@@ -50,7 +68,9 @@ services:
       postgres:
         condition: service_healthy
         restart: true
-    # (옵션) DB 연결까지 포함한 준비 상태 체크
+      redis:
+        condition: service_healthy
+        restart: true
     healthcheck:
       test:
         [
@@ -62,7 +82,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 40s
+      start_period: 50s
     networks:
       - n8n-network
     restart: unless-stopped
@@ -70,3 +90,4 @@ services:
 volumes:
   n8n_data:
   postgres_data:
+  redis_data:
